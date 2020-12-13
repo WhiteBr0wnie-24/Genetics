@@ -168,7 +168,7 @@ public class Enemy : MonoBehaviour
     {
         if (genome != null)
         {
-            float b = genome.health / ((genome.hunger < 1) ? 1f : genome.hunger);
+            float b = 1; // genome.health / ((genome.hunger < 1) ? 1f : genome.hunger);
             float s = damageDealtToPlayer - damageTakenFromPlayer;
             float r = b * (s > 0 ? s : 1) + timesEscaped;
 

@@ -89,6 +89,11 @@ public class PlayfieldController : MonoBehaviour
                     currentDeadOnes.Sort((x, y) => y.getFitness().CompareTo(x.getFitness()));
                     deadEnemies.Clear();
 
+                    foreach (var e in currentDeadOnes)
+                    {
+                        Debug.Log(e.getFitness());
+                    }
+
                     // Mate the top 50%
                     for (int i = 0; i < limit; i += 2)
                     {
