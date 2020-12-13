@@ -21,17 +21,14 @@ public class Enemy : MonoBehaviour
     private int age;
     private EnemyGenome genome;
 
-    void Awake()
+    // Start is called before the first frame update
+    void Start()
     {
         if (mother == null || father == null)
             genome = new EnemyGenome();
         else
             genome = new EnemyGenome(father, mother);
-    }
 
-    // Start is called before the first frame update
-    void Start()
-    {
         player = GameObject.FindWithTag("Player").GetComponent<Player>();
         pfc = GameObject.FindWithTag("GameController").GetComponent<PlayfieldController>();
         r = GetComponent<Renderer>();

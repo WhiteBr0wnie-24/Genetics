@@ -7,7 +7,7 @@ public abstract class SimulationParameters
     public static float HUNGER_DAMAGE_THRESHOLD = 70f;
 	public static float FOOD_DISTANCE_RETURN_THRESHOLD = 10f;
     public static float FEAR_PERCENTAGE_WHEN_HUNGRY = 0.5f;
-    public static float GENERATE_OFFSPRING_DELAY = 10;
+    public static float GENERATE_OFFSPRING_DELAY = 1;
     public static float GENERATE_FOOD_DELAY = 0.25f;
     public static float BULLET_SPEED = 12.5f;
     public static float BULLET_DAMAGE_MULTIPLIER = 10f;

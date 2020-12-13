@@ -12,23 +12,13 @@ public class PlayfieldController : MonoBehaviour
 
     private List<Food> food = new List<Food>();
     private List<Enemy> enemies = new List<Enemy>();
-    private List<EnemyGenome> deadEnemies = new List<EnemyGenome>();
+    private List<Enemy> deadEnemies = new List<Enemy>();
 
-    private float averageFitness = 0f;
+    private int round = 0;
 
     // Start is called before the first frame update
     void Start()
     {
-        // Spawn a random population
-        for (int i = 0; i < SimulationParameters.POPULATION_START_SIZE; i++)
-        {
-            Vector3 position = new Vector3(Random.Range(leftMarker, rightMarker), 0, Random.Range(bottomMarker, topMarker));
-            GameObject g = Instantiate(enemyPrefab, position, Quaternion.identity);
-            Enemy e = g.GetComponent<Enemy>();
-
-            enemies.Add(e);
-        }
-
         // Spawn Food
         for (int i = 0; i < SimulationParameters.FOOD_START_AMOUNT; i++)
         {
@@ -40,11 +30,6 @@ public class PlayfieldController : MonoBehaviour
             food.Add(f);
         }
 
-        Invoke("startCoroutines", 1.0f);
-    }
-
-    private void startCoroutines()
-    {
         StartCoroutine("spawnFood");
         StartCoroutine("mateEnemies");
         StartCoroutine("advanceTime");
@@ -90,39 +75,46 @@ public class PlayfieldController : MonoBehaviour
     {
         while (true)
         {
-            int limit;
-            float fitnessSum = 0f;
-            float oldAverageFitness = averageFitness;
-            List<Enemy> currentPopulation = new List<Enemy>();
-
-            foreach (Enemy e in enemies)
+            if (enemies.Count == 0)
             {
-                currentPopulation.Add(e);
-                fitnessSum += e.getFitness();
-            }
+                // Use previous generations to create new ones
+                if (deadEnemies.Count > 0)
+                {
+                    List<Enemy> currentDeadOnes = new List<Enemy>();
+                    int limit = Mathf.FloorToInt(deadEnemies.Count() / 2f);
 
-            currentPopulation.Sort((x, y) => y.getFitness().CompareTo(x.getFitness()));
-            limit = Mathf.FloorToInt(currentPopulation.Count / 2.0f);
+                    foreach (Enemy e in deadEnemies)
+                        currentDeadOnes.Add(e);
 
-            for (int i = 0; i < limit; i+=2)
-            {
-                if (i + 1 < limit)
+                    currentDeadOnes.Sort((x, y) => y.getFitness().CompareTo(x.getFitness()));
+                    deadEnemies.Clear();
+
+                    // Mate the top 50%
+                    for (int i = 0; i < limit; i += 2)
+                    {
+                        if (i + 1 < currentDeadOnes.Count)
+                        {
+                            Vector3 position = new Vector3(Random.Range(leftMarker, rightMarker), 0, Random.Range(bottomMarker, topMarker));
+                            GameObject child = Instantiate(enemyPrefab, position, Quaternion.identity);
+                            Enemy e = child.GetComponent<Enemy>();
+
+                            e.father = currentDeadOnes[i].getGenome();
+                            e.mother = currentDeadOnes[i + 1].getGenome();
+                            enemies.Add(e);
+                        }
+                    }
+                }
+
+                // Fill the remaining slots with new random enemies
+                while (enemies.Count < SimulationParameters.POPULATION_START_SIZE)
                 {
                     Vector3 position = new Vector3(Random.Range(leftMarker, rightMarker), 0, Random.Range(bottomMarker, topMarker));
-                    GameObject child = Instantiate(enemyPrefab, position, Quaternion.identity);
-                    Enemy e = child.GetComponent<Enemy>();
+                    GameObject g = Instantiate(enemyPrefab, position, Quaternion.identity);
+                    Enemy e = g.GetComponent<Enemy>();
 
-                    e.father = currentPopulation[i].getGenome();
-                    e.mother = currentPopulation[i+1].getGenome();
                     enemies.Add(e);
-
-                    fitnessSum += e.getFitness();
                 }
             }
-
-            averageFitness = fitnessSum / enemies.Count;
-
-            Debug.Log("Spawned " + (enemies.Count - currentPopulation.Count) + " new enemies. Average fitness changed from " + oldAverageFitness + " to " + averageFitness);
 
             yield return new WaitForSeconds(SimulationParameters.GENERATE_OFFSPRING_DELAY);
         }
@@ -152,10 +144,8 @@ public class PlayfieldController : MonoBehaviour
 
     public void remove(Enemy e)
     {
-        Debug.Log("Enemy died! Remaining: " + enemies.Count);
-
         enemies.Remove(e);
-        deadEnemies.Add(e.getGenome());
+        deadEnemies.Add(e);
 
         Destroy(e.gameObject);
     }
