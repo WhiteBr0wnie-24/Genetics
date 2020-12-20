@@ -169,8 +169,10 @@ public class PlayfieldController : MonoBehaviour
                     GameObject child = Instantiate(entityPrefab, position, Quaternion.identity);
                     Entity e = child.GetComponent<Entity>();
 
-                    e.father = pool[i].getGenome();
-                    e.mother = pool[i + 1].getGenome();
+                    // e.father = pool[i].getGenome();
+                    // e.mother = pool[i + 1].getGenome();
+                    e.father = null;
+                    e.mother = null;
 
                     entities.Add(e);
                 }
@@ -213,8 +215,10 @@ public class PlayfieldController : MonoBehaviour
                     GameObject child = Instantiate(enemyPrefab, position, Quaternion.identity);
                     Enemy e = child.GetComponent<Enemy>();
 
-                    e.father = pool[i].getGenome();
-                    e.mother = pool[i + 1].getGenome();
+                    // e.father = pool[i].getGenome();
+                    // e.mother = pool[i + 1].getGenome();
+                    e.father = null;
+                    e.mother = null;
 
                     enemies.Add(e);
                 }
