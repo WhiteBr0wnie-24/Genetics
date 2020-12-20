@@ -6,20 +6,17 @@ public class Enemy : MonoBehaviour
     public Material normalMaterial, attackMaterial, huntingMaterial;
     public EnemyGenome father, mother;
 
-    private Player player;
     private PlayfieldController pfc;
-    private Renderer r;
 
     private bool alive = true;
     private EnemyState state = EnemyState.Waiting;
     private UnityEngine.AI.NavMeshAgent nav;
 
-    private float damageTakenFromPlayer = 0f;
-    private float damageDealtToPlayer = 0f;
-    private float timesEscaped = 0f;
-
+    private int killedEntities = 0;
     private int age;
+
     private EnemyGenome genome;
+    private GameObject target = null;
 
     // Start is called before the first frame update
     void Start()
@@ -29,9 +26,7 @@ public class Enemy : MonoBehaviour
         else
             genome = new EnemyGenome(father, mother);
 
-        player = GameObject.FindWithTag("Player").GetComponent<Player>();
         pfc = GameObject.FindWithTag("GameController").GetComponent<PlayfieldController>();
-        r = GetComponent<Renderer>();
         nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
 
         nav.speed = genome.speed;
@@ -41,45 +36,28 @@ public class Enemy : MonoBehaviour
 
     private IEnumerator makeUpMind()
     {
-        while (alive && player)
+        while (alive)
         {
-            float distanceToPlayer = Vector3.Distance(player.gameObject.transform.position, transform.position);
-            float currentFear = genome.fear;
+            GameObject closestEntity = pfc.getClosestEntity(gameObject);
+
+            float distanceToNextEntity = (closestEntity != null) ? Vector3.Distance(gameObject.transform.position, closestEntity.transform.position) : float.MaxValue;
 
             // Increase the hunger over time
             genome.hunger = genome.hunger + genome.hungerIncreaseOverTime;
 
             // If the hunger is large enough, the enemy takes damage
             if (genome.hunger > SimulationParameters.HUNGER_DAMAGE_THRESHOLD)
-            {
                 genome.health = genome.health - genome.damageWhenHungry;
-                currentFear = genome.fear * SimulationParameters.FEAR_PERCENTAGE_WHEN_HUNGRY;
-            }
 
-            // The enemies will do the following actions with descending importance:
-            // 1. Flee when the fear is too large
-            // 2. Search for food
-            // 3. Attack the player
-            // 4. Wait
-
-            // TODO: Calculate chance for successful attack and then decide whether to flee or attack
-
-            if (genome.health <= genome.braveness && distanceToPlayer < currentFear && distanceToPlayer <= genome.perception)
-                state = EnemyState.Fleeing;
-            else if (genome.hunger > genome.fear)
-                state = EnemyState.Hunting;
-            else if (genome.health > genome.braveness && distanceToPlayer <= genome.perception)
-                state = EnemyState.Attacking;
-            else
+            else if (distanceToNextEntity <= genome.perception)
             {
-                if (state == EnemyState.Fleeing)
-                    timesEscaped += 1;
+                if (target == null)
+                    target = closestEntity;
 
-                state = EnemyState.Waiting;
+                state = EnemyState.Attacking;
             }
-
-            // Visual indicator that the enemy is trying to attack the player
-            r.material = (SimulationParameters.SHOW_ATTACKING_ENEMIES && state == EnemyState.Attacking) ? attackMaterial : (state == EnemyState.Hunting ? huntingMaterial : normalMaterial);
+            else
+                state = EnemyState.Waiting;
 
             yield return new WaitForSeconds(genome.reactionTime);
         }
@@ -90,28 +68,13 @@ public class Enemy : MonoBehaviour
         if (genome.health <= 0f)
             die();
 
-        if (!alive || !player)
+        if (!alive)
             return;
 
-        if (state == EnemyState.Fleeing)
-        {
-            Vector3 directionToPlayer = player.gameObject.transform.position - transform.position;
-            Vector3 fleePosition = transform.position - directionToPlayer;
-
-            nav.isStopped = false;
-            nav.SetDestination(fleePosition);
-        }
-        else if(state == EnemyState.Attacking)
+        if (state == EnemyState.Attacking && target != null)
         {
             nav.isStopped = false;
-            nav.SetDestination(player.gameObject.transform.position);
-        }
-        else if(state == EnemyState.Hunting)
-        {
-            Vector3 nearestFood = pfc.findNearestFood(transform.position, genome.perception);
-
-            nav.isStopped = (nearestFood == null);
-            nav.SetDestination(nearestFood);
+            nav.SetDestination(target.transform.position);
         }
         else
         {
@@ -123,32 +86,15 @@ public class Enemy : MonoBehaviour
     {
         if (alive && genome != null)
         {
-            if (other.gameObject.CompareTag("Player"))
+            if (other.gameObject.CompareTag("Entity"))
             {
-                if (state != EnemyState.Attacking)
+                if (state == EnemyState.Attacking)
                 {
-                    genome.health -= genome.damage;
-                    damageTakenFromPlayer += genome.damage;
+                    killedEntities++;
+                    genome.health = SimulationParameters.ABSOLUTE_MAX_HEALTH;
+                    genome.hunger = 0;
+                    target = null;
                 }
-                else
-                {
-                    player.damage(genome.attackDamage);
-                    damageDealtToPlayer += genome.attackDamage;
-                }
-            }
-
-            if (other.gameObject.CompareTag("Food"))
-            {
-                Food f = other.gameObject.GetComponent<Food>();
-
-                genome.hunger = Mathf.Clamp(genome.hunger - f.consume(), 0f, SimulationParameters.ABSOLUTE_MAX_HUNGER);
-                genome.health += Mathf.Clamp(f.consume(), genome.health, SimulationParameters.ABSOLUTE_MAX_HEALTH);
-            }
-
-            if (other.gameObject.CompareTag("Bullet"))
-            {
-                genome.health -= genome.damage * SimulationParameters.BULLET_DAMAGE_MULTIPLIER;
-                damageTakenFromPlayer += genome.damage * SimulationParameters.BULLET_DAMAGE_MULTIPLIER;
             }
         }
     }
@@ -158,24 +104,21 @@ public class Enemy : MonoBehaviour
         if (alive)
         {
             nav.isStopped = true;
-
             alive = false;
+
             pfc.remove(this);
         }
     }
 
+    public void entityDied(GameObject e)
+    {
+        if (target.Equals(e))
+            target = null;
+    }
+
     public float getFitness()
     {
-        if (genome != null)
-        {
-            float b = 1; // genome.health / ((genome.hunger < 1) ? 1f : genome.hunger);
-            float s = damageDealtToPlayer - damageTakenFromPlayer;
-            float r = b * (s > 0 ? s : 1) + timesEscaped;
-
-            return r * age;
-        }
-
-        return 0;
+        return killedEntities;
     }
 
     public void increaseAge()

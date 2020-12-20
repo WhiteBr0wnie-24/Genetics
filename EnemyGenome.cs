@@ -52,7 +52,7 @@ public class EnemyGenome
 
         if (Random.Range(0f, 1f) <= SimulationParameters.MUTATION_PROBABILITY)
         {
-            int i = Random.Range(0, 11);
+            int i = Random.Range(0, 12);
 
             switch (i)
             {
@@ -102,6 +102,11 @@ public class EnemyGenome
 
                 case 11:
                     lifeExpectancy = Random.Range(SimulationParameters.MIN_LIFE_EXPECTANCY, SimulationParameters.MAX_LIFE_EXPECTANCY);
+                    break;
+
+                case 12:
+                    speed *= 2;
+                    perception *= 10;
                     break;
 
                 default:
